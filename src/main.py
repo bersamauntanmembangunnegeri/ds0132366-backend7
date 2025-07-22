@@ -7,8 +7,11 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from src.models.user import db
 from src.models.product import Category, Product, Order
+from src.models.content import Page, MenuItem
 from src.routes.user import user_bp
 from src.routes.product import product_bp
+from src.routes.admin import admin_bp
+from src.routes.content import content_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
@@ -18,6 +21,8 @@ CORS(app)
 
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(product_bp, url_prefix='/api')
+app.register_blueprint(admin_bp)
+app.register_blueprint(content_bp)
 
 # uncomment if you need to use database
 app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"

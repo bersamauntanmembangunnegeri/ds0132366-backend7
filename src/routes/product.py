@@ -1,6 +1,8 @@
 from flask import Blueprint, request, jsonify
 from src.models.product import db, Product, Category, Order
 import json
+import random
+import string
 
 product_bp = Blueprint('product', __name__)
 
@@ -134,6 +136,23 @@ def delete_product(product_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+def generate_account_credentials(quantity):
+    """Generate fake account credentials for demo purposes"""
+    accounts = []
+    for i in range(quantity):
+        username = ''.join(random.choices(string.ascii_lowercase + string.digits, k=8))
+        password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+        email = f"{username}@{random.choice(['gmail.com', 'outlook.com', 'yahoo.com'])}"
+        
+        accounts.append({
+            'username': username,
+            'password': password,
+            'email': email,
+            'additional_info': 'Account ready for use'
+        })
+    
+    return accounts
+
 # Order routes
 @product_bp.route('/orders', methods=['POST'])
 def create_order():
@@ -162,13 +181,20 @@ def create_order():
         product_id=data['product_id'],
         quantity=quantity,
         total_price=total_price,
-        payment_method=data.get('payment_method', 'pending')
+        payment_method=data.get('payment_method', 'pending'),
+        status='completed'  # Auto-complete for demo purposes
     )
     
     try:
         db.session.add(order)
         # Reduce stock
         product.stock -= quantity
+        
+        # Generate account credentials for the order
+        if order.status == 'completed':
+            account_credentials = generate_account_credentials(quantity)
+            order.account_details = json.dumps(account_credentials)
+        
         db.session.commit()
         return jsonify(order.to_dict()), 201
     except Exception as e:
@@ -179,7 +205,16 @@ def create_order():
 def get_order(order_id):
     """Get a specific order"""
     order = Order.query.get_or_404(order_id)
-    return jsonify(order.to_dict())
+    order_dict = order.to_dict()
+    
+    # Include account details if order is completed
+    if order.status == 'completed' and order.account_details:
+        try:
+            order_dict['account_credentials'] = json.loads(order.account_details)
+        except:
+            order_dict['account_credentials'] = []
+    
+    return jsonify(order_dict)
 
 @product_bp.route('/orders', methods=['GET'])
 def get_orders():
@@ -200,7 +235,13 @@ def update_order_status(order_id):
     if data['status'] not in valid_statuses:
         return jsonify({'error': 'Invalid status'}), 400
     
+    old_status = order.status
     order.status = data['status']
+    
+    # Generate account credentials when order is completed
+    if old_status != 'completed' and order.status == 'completed':
+        account_credentials = generate_account_credentials(order.quantity)
+        order.account_details = json.dumps(account_credentials)
     
     try:
         db.session.commit()

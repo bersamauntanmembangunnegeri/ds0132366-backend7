@@ -63,6 +63,7 @@ class Order(db.Model):
     total_price = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(50), default='pending')  # pending, paid, completed, cancelled
     payment_method = db.Column(db.String(50))
+    account_details = db.Column(db.Text)  # JSON string containing delivered account credentials
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
