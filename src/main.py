@@ -1,5 +1,6 @@
 import os
 import sys
+import os
 # DON'T CHANGE THIS !!!
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
@@ -9,6 +10,7 @@ from src.models.user import db
 from src.models.product import Category, Product, Order
 from src.models.content import Page, MenuItem
 from src.models.homepage import HomepageSection, SiteSettings
+from src.models.featured_products import FeaturedProductsSection
 from src.routes.user import user_bp
 from src.routes.product import product_bp
 from src.routes.content import content_bp

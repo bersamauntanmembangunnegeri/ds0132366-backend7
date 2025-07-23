@@ -221,3 +221,109 @@ def admin_delete_site_setting(setting_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
+
+# Featured Products Admin endpoints
+@homepage_bp.route('/admin/featured-products/<int:section_id>', methods=['GET'])
+@require_admin()
+def admin_get_featured_products_config(section_id):
+    """Get featured products configuration for a section"""
+    try:
+        from ..models.featured_products import FeaturedProductsSection
+        config = FeaturedProductsSection.query.filter_by(homepage_section_id=section_id).first()
+        if config:
+            return jsonify(config.to_dict())
+        else:
+            return jsonify({'message': 'No configuration found'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@homepage_bp.route('/admin/featured-products', methods=['POST'])
+@require_admin()
+def admin_create_featured_products_config():
+    """Create or update featured products configuration"""
+    try:
+        from ..models.featured_products import FeaturedProductsSection
+        import json
+        
+        data = request.get_json()
+        section_id = data.get('homepage_section_id')
+        
+        # Check if config already exists
+        config = FeaturedProductsSection.query.filter_by(homepage_section_id=section_id).first()
+        
+        if config:
+            # Update existing config
+            config.product_ids = json.dumps(data.get('product_ids', []))
+            config.max_products = data.get('max_products', 8)
+            config.sort_by = data.get('sort_by', 'id')
+            config.sort_order = data.get('sort_order', 'asc')
+        else:
+            # Create new config
+            config = FeaturedProductsSection(
+                homepage_section_id=section_id,
+                product_ids=json.dumps(data.get('product_ids', [])),
+                max_products=data.get('max_products', 8),
+                sort_by=data.get('sort_by', 'id'),
+                sort_order=data.get('sort_order', 'asc')
+            )
+            db.session.add(config)
+        
+        db.session.commit()
+        return jsonify(config.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@homepage_bp.route('/featured-products/<int:section_id>', methods=['GET'])
+def get_featured_products(section_id):
+    """Get featured products for a section (public endpoint)"""
+    try:
+        from ..models.featured_products import FeaturedProductsSection
+        from ..models.product import Product
+        import json
+        
+        config = FeaturedProductsSection.query.filter_by(homepage_section_id=section_id).first()
+        if not config:
+            return jsonify([])
+        
+        # Parse product IDs
+        try:
+            product_ids = json.loads(config.product_ids) if config.product_ids else []
+        except:
+            product_ids = []
+        
+        if product_ids:
+            # Get specific products by IDs
+            products = Product.query.filter(Product.id.in_(product_ids)).limit(config.max_products).all()
+        else:
+            # Get products based on sort criteria
+            query = Product.query
+            
+            if config.sort_by == 'price':
+                if config.sort_order == 'desc':
+                    query = query.order_by(Product.price.desc())
+                else:
+                    query = query.order_by(Product.price.asc())
+            elif config.sort_by == 'name':
+                if config.sort_order == 'desc':
+                    query = query.order_by(Product.name.desc())
+                else:
+                    query = query.order_by(Product.name.asc())
+            elif config.sort_by == 'created_at':
+                if config.sort_order == 'desc':
+                    query = query.order_by(Product.created_at.desc())
+                else:
+                    query = query.order_by(Product.created_at.asc())
+            else:
+                # Default sort by ID
+                if config.sort_order == 'desc':
+                    query = query.order_by(Product.id.desc())
+                else:
+                    query = query.order_by(Product.id.asc())
+            
+            products = query.limit(config.max_products).all()
+        
+        return jsonify([product.to_dict() for product in products])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+

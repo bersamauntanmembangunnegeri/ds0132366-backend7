@@ -14,8 +14,7 @@ def seed_data():
         db.create_all()
         
         # Path to the extracted seed data JSON file
-        seed_data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'database_seed_data.json')
-        
+        seed_data_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database', 'database_seed_data.json')
         if not os.path.exists(seed_data_path):
             print(f"Seed data file not found at {seed_data_path}")
             return
