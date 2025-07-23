@@ -152,6 +152,14 @@ def get_categories():
 def create_category():
     data = request.get_json()
     
+    if not data or 'name' not in data:
+        return jsonify({'error': 'Category name is required'}), 400
+    
+    # Check if category already exists
+    existing_category = Category.query.filter_by(name=data['name']).first()
+    if existing_category:
+        return jsonify({'error': 'Category with this name already exists'}), 400
+    
     try:
         category = Category(
             name=data['name'],
@@ -168,13 +176,29 @@ def create_category():
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 400
+        # Handle specific database errors
+        error_msg = str(e)
+        if 'UNIQUE constraint failed' in error_msg:
+            return jsonify({'error': 'Category with this name already exists'}), 400
+        return jsonify({'error': 'Failed to create category: ' + error_msg}), 400
 
 @admin_bp.route('/categories/<int:category_id>', methods=['PUT'])
 @require_admin()
 def update_category(category_id):
     category = Category.query.get_or_404(category_id)
     data = request.get_json()
+    
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    # Check if new name conflicts with existing category (excluding current one)
+    if 'name' in data and data['name'] != category.name:
+        existing_category = Category.query.filter(
+            Category.name == data['name'],
+            Category.id != category_id
+        ).first()
+        if existing_category:
+            return jsonify({'error': 'Category with this name already exists'}), 400
     
     try:
         category.name = data.get('name', category.name)
@@ -189,7 +213,11 @@ def update_category(category_id):
         
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': str(e)}), 400
+        # Handle specific database errors
+        error_msg = str(e)
+        if 'UNIQUE constraint failed' in error_msg:
+            return jsonify({'error': 'Category with this name already exists'}), 400
+        return jsonify({'error': 'Failed to update category: ' + error_msg}), 400
 
 @admin_bp.route('/categories/<int:category_id>', methods=['DELETE'])
 @require_admin()

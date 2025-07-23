@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, session
 from src.models.user import User, db
 
 user_bp = Blueprint('user', __name__)
@@ -37,3 +37,60 @@ def delete_user(user_id):
     db.session.delete(user)
     db.session.commit()
     return '', 204
+
+
+@user_bp.route('/auth/login', methods=['POST'])
+def login():
+    try:
+        data = request.get_json()
+        username = data.get('username')
+        password = data.get('password')
+        
+        # Simple hardcoded authentication for demo
+        if username == 'admin' and password == 'admin123':
+            session['admin_logged_in'] = True
+            return jsonify({
+                'success': True,
+                'message': 'Login successful',
+                'user': {
+                    'id': 1,
+                    'username': 'admin',
+                    'role': 'admin'
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Invalid credentials'
+            }), 401
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': 'Login failed',
+            'error': str(e)
+        }), 500
+
+@user_bp.route('/auth/status', methods=['GET'])
+def auth_status():
+    if session.get('admin_logged_in'):
+        return jsonify({
+            'authenticated': True,
+            'user': {
+                'id': 1,
+                'username': 'admin',
+                'role': 'admin'
+            }
+        })
+    else:
+        return jsonify({
+            'authenticated': False
+        })
+
+@user_bp.route('/auth/logout', methods=['POST'])
+def logout():
+    session.pop('admin_logged_in', None)
+    return jsonify({
+        'success': True,
+        'message': 'Logout successful'
+    })
+
